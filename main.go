@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 )
@@ -8,10 +9,20 @@ import (
 const port = "8080"
 const filepathRoot = "."
 
+type apiConfig struct {
+	fileserverHits int
+}
+
 func main() {
 	mux := http.NewServeMux()
-	mux.Handle("/app/*", http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
-	mux.HandleFunc("/healthz", handleReadiness)
+	apiCfg := apiConfig{}
+
+	mux.Handle("/app/*", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot)))))
+
+	mux.HandleFunc("GET /metrics", apiCfg.handleMetrics)
+	mux.HandleFunc("GET /reset", apiCfg.handleReset)
+
+	mux.HandleFunc("GET /healthz", handleReadiness)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
@@ -26,4 +37,25 @@ func handleReadiness(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(http.StatusText(http.StatusOK)))
+}
+
+func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		cfg.fileserverHits++
+		w.Header().Add("Control-cache", "no-cache")
+		next.ServeHTTP(w, req)
+	})
+}
+
+func (cfg *apiConfig) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(fmt.Sprintf("Hits: %d", cfg.fileserverHits)))
+}
+
+func (cfg *apiConfig) handleReset(w http.ResponseWriter, r *http.Request) {
+	cfg.fileserverHits = 0
+	w.Header().Add("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(fmt.Sprintf("Hits: %d", cfg.fileserverHits)))
 }
