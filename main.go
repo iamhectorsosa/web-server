@@ -67,29 +67,25 @@ func handleValidateChirp(w http.ResponseWriter, r *http.Request) {
 		"kerfuffle", "sharbert", "fornax",
 	}
 
-	sanitizedChirp := payload.Body
+	cleanedBody := payload.Body
 
-	for _, word := range profaneWords {
-		lowerCaseChirp := strings.ToLower(sanitizedChirp)
-		hasProfane := strings.Contains(lowerCaseChirp, word)
-		if hasProfane {
-			arrayChirp := strings.Split(sanitizedChirp, " ")
-			var sanitizedArrayChirp []string
-			for _, wordToSanitize := range arrayChirp {
-				if strings.ToLower(wordToSanitize) == word {
-					sanitizedArrayChirp = append(sanitizedArrayChirp, "****")
-				} else {
-					sanitizedArrayChirp = append(sanitizedArrayChirp, wordToSanitize)
+	for _, profaneWord := range profaneWords {
+		loweredBody := strings.ToLower(cleanedBody)
+		if strings.Contains(loweredBody, profaneWord) {
+			words := strings.Split(cleanedBody, " ")
+			for i, wordToSanitize := range words {
+				if strings.ToLower(wordToSanitize) == profaneWord {
+					words[i] = "****"
 				}
 			}
-			sanitizedChirp = strings.Join(sanitizedArrayChirp, " ")
+			cleanedBody = strings.Join(words, " ")
 		}
 	}
 
 	respondWithJSON(w, http.StatusOK, struct {
 		CleanedBody string `json:"cleaned_body"`
 	}{
-		CleanedBody: sanitizedChirp,
+		CleanedBody: cleanedBody,
 	})
 
 }
