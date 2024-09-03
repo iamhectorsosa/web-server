@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 )
 
 const port = "8080"
@@ -45,7 +46,7 @@ func handleReadiness(w http.ResponseWriter, r *http.Request) {
 
 func handleValidateChirp(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
+	// decoder.DisallowUnknownFields()
 	payload := struct {
 		Body string `json:"body"`
 	}{}
@@ -62,10 +63,33 @@ func handleValidateChirp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	profaneWords := []string{
+		"kerfuffle", "sharbert", "fornax",
+	}
+
+	sanitizedChirp := payload.Body
+
+	for _, word := range profaneWords {
+		lowerCaseChirp := strings.ToLower(sanitizedChirp)
+		hasProfane := strings.Contains(lowerCaseChirp, word)
+		if hasProfane {
+			arrayChirp := strings.Split(sanitizedChirp, " ")
+			var sanitizedArrayChirp []string
+			for _, wordToSanitize := range arrayChirp {
+				if strings.ToLower(wordToSanitize) == word {
+					sanitizedArrayChirp = append(sanitizedArrayChirp, "****")
+				} else {
+					sanitizedArrayChirp = append(sanitizedArrayChirp, wordToSanitize)
+				}
+			}
+			sanitizedChirp = strings.Join(sanitizedArrayChirp, " ")
+		}
+	}
+
 	respondWithJSON(w, http.StatusOK, struct {
-		Valid bool `json:"valid"`
+		CleanedBody string `json:"cleaned_body"`
 	}{
-		Valid: true,
+		CleanedBody: sanitizedChirp,
 	})
 
 }
