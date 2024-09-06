@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
+
+	database "github.com/iamhectorsosa/web-server/database"
 )
 
 const port = "8080"
@@ -13,11 +16,21 @@ const filepathRoot = "."
 
 type apiConfig struct {
 	fileserverHits int
+	DB             *database.DB
 }
 
 func main() {
 	mux := http.NewServeMux()
-	apiCfg := apiConfig{}
+
+	db, err := database.NewDB("database.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	apiCfg := apiConfig{
+		fileserverHits: 0,
+		DB:             db,
+	}
 
 	fsHandler := apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(filepathRoot))))
 	mux.Handle("/app/*", fsHandler)
@@ -27,7 +40,10 @@ func main() {
 
 	mux.HandleFunc("GET /api/healthz", handleReadiness)
 
-	mux.HandleFunc("POST /api/validate_chirp", handleValidateChirp)
+	// mux.HandleFunc("POST /api/validate_chirp", handleValidateChirp)
+	mux.HandleFunc("GET /api/chirps", apiCfg.getChirps)
+	mux.HandleFunc("GET /api/chirps/{id}", apiCfg.getChirpById)
+	mux.HandleFunc("POST /api/chirps", apiCfg.postChirps)
 
 	srv := &http.Server{
 		Addr:    ":" + port,
@@ -44,9 +60,38 @@ func handleReadiness(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(http.StatusText(http.StatusOK)))
 }
 
-func handleValidateChirp(w http.ResponseWriter, r *http.Request) {
+func (cfg *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
+	chirps, err := cfg.DB.GetChirps()
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Something went wrong")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, chirps)
+}
+
+func (cfg *apiConfig) getChirpById(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	chirpId, err := strconv.Atoi(id)
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Chirp ID")
+		return
+	}
+
+	chirps, err := cfg.DB.GetChirpById(chirpId)
+
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "Something went wrong")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, chirps)
+}
+
+func (cfg *apiConfig) postChirps(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	// decoder.DisallowUnknownFields()
 	payload := struct {
 		Body string `json:"body"`
 	}{}
@@ -82,12 +127,14 @@ func handleValidateChirp(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	respondWithJSON(w, http.StatusOK, struct {
-		CleanedBody string `json:"cleaned_body"`
-	}{
-		CleanedBody: cleanedBody,
-	})
+	chirp, err := cfg.DB.CreateChirp(cleanedBody)
 
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Something went wrong")
+		return
+	}
+
+	respondWithJSON(w, http.StatusCreated, chirp)
 }
 
 func respondWithError(w http.ResponseWriter, code int, msg string) {
