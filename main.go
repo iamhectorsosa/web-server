@@ -45,6 +45,8 @@ func main() {
 	mux.HandleFunc("GET /api/chirps/{id}", apiCfg.getChirpById)
 	mux.HandleFunc("POST /api/chirps", apiCfg.postChirps)
 
+	mux.HandleFunc("POST /api/users", apiCfg.postUsers)
+
 	srv := &http.Server{
 		Addr:    ":" + port,
 		Handler: mux,
@@ -135,6 +137,23 @@ func (cfg *apiConfig) postChirps(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusCreated, chirp)
+}
+
+func (cfg *apiConfig) postUsers(w http.ResponseWriter, r *http.Request) {
+	payload := struct {
+		Email string `json:"email"`
+	}{}
+
+	err := json.NewDecoder(r.Body).Decode(&payload)
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Something went wrong")
+		return
+	}
+
+	user, err := cfg.DB.CreateUser(payload.Email)
+
+	respondWithJSON(w, http.StatusCreated, user)
 }
 
 func respondWithError(w http.ResponseWriter, code int, msg string) {
