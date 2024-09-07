@@ -12,19 +12,19 @@ type DB struct {
 	mu   *sync.RWMutex
 }
 
-type Chirp struct {
-	Id   int    `json:"id"`
-	Body string `json:"body"`
-}
-
-type User struct {
-	Id    int    `json:"id"`
-	Email string `json:"email"`
-}
-
 type DBStructure struct {
 	Chirps map[int]Chirp `json:"chirps"`
 	Users  map[int]User  `json:"users"`
+}
+
+func NewDB(path string) (*DB, error) {
+	db := &DB{
+		path: path,
+		mu:   &sync.RWMutex{},
+	}
+
+	err := db.ensureDB()
+	return db, err
 }
 
 func (db *DB) ensureDB() error {
@@ -41,7 +41,14 @@ func (db *DB) ensureDB() error {
 	}
 
 	if info.Size() == 0 {
-		file.Write([]byte(`{"chirps":{},"users":{}}`))
+		err = json.NewEncoder(file).Encode(DBStructure{
+			Chirps: map[int]Chirp{},
+			Users:  map[int]User{},
+		})
+
+		if err != nil {
+			return fmt.Errorf("problem encoding %s, %v", db.path, err)
+		}
 	}
 
 	return nil
@@ -83,115 +90,4 @@ func (db *DB) writeDB(dbStructure DBStructure) error {
 	}
 
 	return nil
-}
-
-func (db *DB) CreateChirp(body string) (Chirp, error) {
-	dbStructure, err := db.loadDB()
-
-	if err != nil {
-		return Chirp{}, fmt.Errorf("problem loading db, %v", err)
-	}
-
-	lastId := 0
-	for key := range dbStructure.Chirps {
-		if key > lastId {
-			lastId = key
-		}
-	}
-
-	nextId := lastId + 1
-
-	newChirp := Chirp{
-		Id:   nextId,
-		Body: body,
-	}
-
-	dbStructure.Chirps[nextId] = newChirp
-
-	err = db.writeDB(dbStructure)
-
-	if err != nil {
-		return Chirp{}, fmt.Errorf("problem writing to db, %v", err)
-	}
-
-	return newChirp, nil
-}
-
-func (db *DB) CreateUser(body string) (User, error) {
-	dbStructure, err := db.loadDB()
-
-	if err != nil {
-		return User{}, fmt.Errorf("problem loading db, %v", err)
-	}
-
-	lastId := 0
-	for key := range dbStructure.Users {
-		if key > lastId {
-			lastId = key
-		}
-	}
-
-	nextId := lastId + 1
-
-	newUser := User{
-		Id:    nextId,
-		Email: body,
-	}
-
-	dbStructure.Users[nextId] = newUser
-
-	err = db.writeDB(dbStructure)
-
-	if err != nil {
-		return User{}, fmt.Errorf("problem writing to db, %v", err)
-	}
-
-	return newUser, nil
-}
-
-func (db *DB) GetChirps() ([]Chirp, error) {
-	dbStructure, err := db.loadDB()
-
-	if err != nil {
-		return nil, fmt.Errorf("problem loading db, %v", err)
-	}
-
-	chirps := make([]Chirp, 0, len(dbStructure.Chirps))
-
-	for _, chirp := range dbStructure.Chirps {
-		chirps = append(chirps, chirp)
-	}
-
-	return chirps, nil
-}
-
-func (db *DB) GetChirpById(chirpId int) (Chirp, error) {
-	dbStructure, err := db.loadDB()
-
-	if err != nil {
-		return Chirp{}, fmt.Errorf("problem loading db, %v", err)
-	}
-
-	chirp, ok := dbStructure.Chirps[chirpId]
-
-	if !ok {
-		return Chirp{}, fmt.Errorf("chirp not found")
-	}
-
-	return chirp, nil
-}
-
-func NewDB(path string) (*DB, error) {
-	db := &DB{
-		path: path,
-		mu:   &sync.RWMutex{},
-	}
-
-	err := db.ensureDB()
-
-	if err != nil {
-		return nil, fmt.Errorf("problem parsing file, %v", err)
-	}
-
-	return db, nil
 }
