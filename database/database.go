@@ -17,22 +17,29 @@ type DBStructure struct {
 	Users  map[int]User  `json:"users"`
 }
 
-func NewDB(path string) (*DB, error) {
+func NewDB(path string, debug bool) (*DB, error) {
 	db := &DB{
 		path: path,
 		mu:   &sync.RWMutex{},
 	}
 
-	err := db.ensureDB()
+	err := db.ensureDB(debug)
 	return db, err
 }
 
-func (db *DB) ensureDB() error {
-	file, err := os.OpenFile(db.path, os.O_RDWR|os.O_CREATE, 0666)
+func (db *DB) ensureDB(debug bool) error {
+	openFileFlags := os.O_RDWR | os.O_CREATE
+	if debug {
+		openFileFlags |= os.O_TRUNC
+	}
+
+	file, err := os.OpenFile(db.path, openFileFlags, 0666)
 
 	if err != nil {
 		return fmt.Errorf("problem opening %s, %v", db.path, err)
 	}
+
+	defer file.Close()
 
 	info, err := file.Stat()
 
@@ -40,7 +47,7 @@ func (db *DB) ensureDB() error {
 		return fmt.Errorf("problem getting file info from the file %s, %v", file.Name(), err)
 	}
 
-	if info.Size() == 0 {
+	if info.Size() == 0 || debug {
 		err = json.NewEncoder(file).Encode(DBStructure{
 			Chirps: map[int]Chirp{},
 			Users:  map[int]User{},
