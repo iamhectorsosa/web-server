@@ -3,11 +3,12 @@ package main
 import (
 	"net/http"
 
-	"github.com/iamhectorsosa/web-server/database"
+	"github.com/iamhectorsosa/web-server/internal/database"
 )
 
 type apiConfig struct {
-	DB *database.DB
+	DB        *database.DB
+	jwtSecret string
 }
 
 func NewServer(api apiConfig, port string) *http.Server {
@@ -17,6 +18,7 @@ func NewServer(api apiConfig, port string) *http.Server {
 	router.HandleFunc("POST /api/chirps", api.postChirps)
 
 	router.HandleFunc("POST /api/users", api.postUsers)
+	router.HandleFunc("PUT /api/users", api.putUsers)
 	router.HandleFunc("POST /api/login", api.postLogin)
 
 	return &http.Server{
