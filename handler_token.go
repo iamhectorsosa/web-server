@@ -15,7 +15,7 @@ func (api *apiConfig) postRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := api.DB.GetUserByRefreshToken(authRefreshToken)
+	user, refreshToken, err := api.DB.GetUserAndRefreshTokenByRefreshToken(authRefreshToken)
 
 	if err != nil {
 		log.Printf("Error with refresh token: %v", err)
@@ -23,7 +23,7 @@ func (api *apiConfig) postRefresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if user.RefreshTokenExpiration.Compare(time.Now().UTC()) < 0 {
+	if refreshToken.ExpiresAt.Before(time.Now().UTC()) {
 		respondWithError(w, http.StatusUnauthorized, "Refresh token expired")
 		return
 	}
@@ -49,7 +49,7 @@ func (api *apiConfig) postRevoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = api.DB.DeleteRefreshTokenByRefreshToken(authRefreshToken)
+	err = api.DB.DeleteRefreshToken(authRefreshToken)
 
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Invalid refresh token")

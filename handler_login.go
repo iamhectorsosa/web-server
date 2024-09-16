@@ -44,7 +44,7 @@ func (api *apiConfig) postLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err = api.DB.UpdateUserRefreshTokenById(user.Id, refreshToken, refreshTokenExpiration)
+	err = api.DB.CreateRefreshToken(user.Id, refreshToken, refreshTokenExpiration)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Updating user failed")
 		return
@@ -59,6 +59,6 @@ func (api *apiConfig) postLogin(w http.ResponseWriter, r *http.Request) {
 		Id:           user.Id,
 		Email:        user.Email,
 		Token:        token,
-		RefreshToken: user.RefreshToken,
+		RefreshToken: refreshToken,
 	})
 }

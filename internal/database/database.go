@@ -2,6 +2,7 @@ package database
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -13,9 +14,13 @@ type DB struct {
 }
 
 type DBStructure struct {
-	Chirps map[int]Chirp `json:"chirps"`
-	Users  map[int]User  `json:"users"`
+	Chirps        map[int]Chirp           `json:"chirps"`
+	Users         map[int]User            `json:"users"`
+	RefreshTokens map[string]RefreshToken `json:"refresh_tokens"`
 }
+
+var ErrDatabaseLoad = errors.New("Error loading database")
+var ErrDatabaseWrite = errors.New("Error writing to database")
 
 func NewDB(path string, debug bool) (*DB, error) {
 	db := &DB{
@@ -49,8 +54,9 @@ func (db *DB) ensureDB(debug bool) error {
 
 	if info.Size() == 0 || debug {
 		err = json.NewEncoder(file).Encode(DBStructure{
-			Chirps: map[int]Chirp{},
-			Users:  map[int]User{},
+			Chirps:        map[int]Chirp{},
+			Users:         map[int]User{},
+			RefreshTokens: map[string]RefreshToken{},
 		})
 
 		if err != nil {
