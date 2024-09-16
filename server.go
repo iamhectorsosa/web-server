@@ -16,6 +16,7 @@ func NewServer(api apiConfig, port string) *http.Server {
 	router.HandleFunc("GET /api/chirps", api.getChirps)
 	router.HandleFunc("GET /api/chirps/{id}", api.getChirpById)
 	router.HandleFunc("POST /api/chirps", api.postChirps)
+	router.HandleFunc("DELETE /api/chirps/{id}", api.deleteChirpById)
 
 	router.HandleFunc("POST /api/users", api.postUsers)
 	router.HandleFunc("PUT /api/users", api.putUsers)

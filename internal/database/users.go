@@ -5,9 +5,9 @@ import (
 )
 
 type User struct {
-	Id                     int       `json:"id"`
-	Email                  string    `json:"email"`
-	PasswordHash           string    `json:"password_hash"`
+	Id           int    `json:"id"`
+	Email        string `json:"email"`
+	PasswordHash string `json:"password_hash"`
 }
 
 var ErrUserAlreadyExists = errors.New("User already exists")
@@ -82,10 +82,7 @@ func (db *DB) GetUserByEmail(email string) (User, error) {
 	for _, user := range dbStructure.Users {
 		if user.Email == email {
 			return user, nil
-		} else {
-			return User{}, ErrUserDoesNotExist
 		}
-
 	}
 
 	return User{}, ErrUserDoesNotExist
@@ -104,9 +101,9 @@ func (db *DB) UpdateUserEmailPasswordById(userId int, email, passwordHash string
 	}
 
 	updatedUser := User{
-		Id:                     user.Id,
-		Email:                  email,
-		PasswordHash:           passwordHash,
+		Id:           user.Id,
+		Email:        email,
+		PasswordHash: passwordHash,
 	}
 
 	dbStructure.Users[userId] = updatedUser

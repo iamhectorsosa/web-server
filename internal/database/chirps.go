@@ -1,19 +1,22 @@
 package database
 
 import (
-	"fmt"
+	"errors"
 )
 
 type Chirp struct {
-	Id   int    `json:"id"`
-	Body string `json:"body"`
+	Id       int    `json:"id"`
+	Body     string `json:"body"`
+	AuthorId int    `json:"author_id"`
 }
 
-func (db *DB) CreateChirp(body string) (Chirp, error) {
+var ErrChirpDoesNotExist = errors.New("Chirp doesn't exist")
+
+func (db *DB) CreateChirp(body string, authorId int) (Chirp, error) {
 	dbStructure, err := db.loadDB()
 
 	if err != nil {
-		return Chirp{}, fmt.Errorf("problem loading db, %v", err)
+		return Chirp{}, ErrDatabaseLoad
 	}
 
 	lastId := 0
@@ -26,8 +29,9 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 	nextId := lastId + 1
 
 	newChirp := Chirp{
-		Id:   nextId,
-		Body: body,
+		Id:       nextId,
+		Body:     body,
+		AuthorId: authorId,
 	}
 
 	dbStructure.Chirps[nextId] = newChirp
@@ -35,7 +39,7 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 	err = db.writeDB(dbStructure)
 
 	if err != nil {
-		return Chirp{}, fmt.Errorf("problem writing to db, %v", err)
+		return Chirp{}, ErrDatabaseWrite
 	}
 
 	return newChirp, nil
@@ -45,7 +49,7 @@ func (db *DB) GetChirps() ([]Chirp, error) {
 	dbStructure, err := db.loadDB()
 
 	if err != nil {
-		return nil, fmt.Errorf("problem loading db, %v", err)
+		return nil, ErrDatabaseLoad
 	}
 
 	chirps := make([]Chirp, 0, len(dbStructure.Chirps))
@@ -61,14 +65,31 @@ func (db *DB) GetChirpById(chirpId int) (Chirp, error) {
 	dbStructure, err := db.loadDB()
 
 	if err != nil {
-		return Chirp{}, fmt.Errorf("problem loading db, %v", err)
+		return Chirp{}, ErrDatabaseLoad
 	}
 
 	chirp, ok := dbStructure.Chirps[chirpId]
 
 	if !ok {
-		return Chirp{}, fmt.Errorf("chirp not found")
+		return Chirp{}, ErrChirpDoesNotExist
 	}
 
 	return chirp, nil
+}
+
+func (db *DB) DeleteChirpById(chirpId int) error {
+	dbStructure, err := db.loadDB()
+
+	if err != nil {
+		return ErrDatabaseLoad
+	}
+
+	delete(dbStructure.Chirps, chirpId)
+
+	err = db.writeDB(dbStructure)
+	if err != nil {
+		return ErrDatabaseWrite
+	}
+
+	return nil
 }

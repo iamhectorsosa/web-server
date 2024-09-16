@@ -52,7 +52,7 @@ func (api *apiConfig) postRevoke(w http.ResponseWriter, r *http.Request) {
 	err = api.DB.DeleteRefreshToken(authRefreshToken)
 
 	if err != nil {
-		respondWithError(w, http.StatusUnauthorized, "Invalid refresh token")
+		respondWithError(w, http.StatusInternalServerError, "Invalid refresh token")
 		return
 	}
 

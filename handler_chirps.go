@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/iamhectorsosa/web-server/internal/auth"
 )
 
 func (api *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
@@ -38,12 +40,24 @@ func (api *apiConfig) getChirpById(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *apiConfig) postChirps(w http.ResponseWriter, r *http.Request) {
+	authToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Unauthenticated request")
+		return
+	}
+
+	userId, err := auth.ValidateJWT(authToken, api.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Unauthenticated request")
+		return
+	}
+
 	decoder := json.NewDecoder(r.Body)
 	payload := struct {
 		Body string `json:"body"`
 	}{}
 
-	err := decoder.Decode(&payload)
+	err = decoder.Decode(&payload)
 
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Something went wrong")
@@ -74,7 +88,7 @@ func (api *apiConfig) postChirps(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	chirp, err := api.DB.CreateChirp(cleanedBody)
+	chirp, err := api.DB.CreateChirp(cleanedBody, userId)
 
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Something went wrong")
@@ -82,4 +96,47 @@ func (api *apiConfig) postChirps(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondWithJSON(w, http.StatusCreated, chirp)
+}
+
+func (api *apiConfig) deleteChirpById(w http.ResponseWriter, r *http.Request) {
+	authToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Unauthenticated request")
+		return
+	}
+
+	userId, err := auth.ValidateJWT(authToken, api.jwtSecret)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Unauthenticated request")
+		return
+	}
+
+	id := r.PathValue("id")
+	chirpId, err := strconv.Atoi(id)
+
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid Chirp ID")
+		return
+	}
+
+	chirp, err := api.DB.GetChirpById(chirpId)
+
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "Something went wrong")
+		return
+	}
+
+	if chirp.AuthorId != userId {
+		respondWithError(w, http.StatusForbidden, "Cannot delete others Chirps")
+		return
+	}
+
+	err = api.DB.DeleteChirpById(chirpId)
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Something went wrong")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

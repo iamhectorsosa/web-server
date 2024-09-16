@@ -11,7 +11,7 @@ type RefreshToken struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
-var ErrRefreshTokenDoesNotExist = errors.New("User doesn't exist")
+var ErrRefreshTokenDoesNotExist = errors.New("Refresh token doesn't exist")
 
 func (db *DB) CreateRefreshToken(userId int, token string, expiresAt time.Time) error {
 	dbStructure, err := db.loadDB()
