@@ -2,12 +2,15 @@ package database
 
 import (
 	"errors"
+	"time"
 )
 
 type User struct {
-	Id           int    `json:"id"`
-	Email        string `json:"email"`
-	PasswordHash string `json:"password_hash"`
+	Id                     int       `json:"id"`
+	Email                  string    `json:"email"`
+	PasswordHash           string    `json:"password_hash"`
+	RefreshToken           string    `json:"refresh_token"`
+	RefreshTokenExpiration time.Time `json:"refresh_token_expiration"`
 }
 
 var ErrUserAlreadyExists = errors.New("User already exists")
@@ -74,25 +77,27 @@ func (db *DB) GetUserByEmail(email string) (User, error) {
 	return User{}, ErrUserDoesNotExist
 }
 
-func (db *DB) UpdateUserById(userId int, email, passwordHash string) (User, error) {
+func (db *DB) UpdateUserEmailPasswordById(userId int, email, passwordHash string) (User, error) {
 	dbStructure, err := db.loadDB()
 	if err != nil {
 		return User{}, ErrDatabaseLoad
 	}
 
-	_, ok := dbStructure.Users[userId]
+	user, ok := dbStructure.Users[userId]
 
 	if !ok {
 		return User{}, ErrUserDoesNotExist
 	}
 
-	newUser := User{
-		Id:           userId,
-		Email:        email,
-		PasswordHash: passwordHash,
+	updatedUser := User{
+		Id:                     user.Id,
+		Email:                  email,
+		PasswordHash:           passwordHash,
+		RefreshToken:           user.RefreshToken,
+		RefreshTokenExpiration: user.RefreshTokenExpiration,
 	}
 
-	dbStructure.Users[userId] = newUser
+	dbStructure.Users[userId] = updatedUser
 
 	err = db.writeDB(dbStructure)
 
@@ -100,5 +105,87 @@ func (db *DB) UpdateUserById(userId int, email, passwordHash string) (User, erro
 		return User{}, ErrDatabaseWrite
 	}
 
-	return newUser, nil
+	return updatedUser, nil
+}
+
+func (db *DB) UpdateUserRefreshTokenById(userId int, refreshToken string, refreshTokenExpiration time.Time) (User, error) {
+	dbStructure, err := db.loadDB()
+	if err != nil {
+		return User{}, ErrDatabaseLoad
+	}
+
+	user, ok := dbStructure.Users[userId]
+
+	if !ok {
+		return User{}, ErrUserDoesNotExist
+	}
+
+	updatedUser := User{
+		Id:                     userId,
+		Email:                  user.Email,
+		PasswordHash:           user.PasswordHash,
+		RefreshToken:           refreshToken,
+		RefreshTokenExpiration: refreshTokenExpiration,
+	}
+
+	dbStructure.Users[userId] = updatedUser
+
+	err = db.writeDB(dbStructure)
+
+	if err != nil {
+		return User{}, ErrDatabaseWrite
+	}
+
+	return updatedUser, nil
+}
+
+func (db *DB) GetUserByRefreshToken(refreshToken string) (User, error) {
+	dbStructure, err := db.loadDB()
+
+	if err != nil {
+		return User{}, ErrDatabaseLoad
+	}
+
+	for _, user := range dbStructure.Users {
+		if user.RefreshToken == refreshToken {
+			return user, nil
+		} else {
+			return User{}, ErrUserDoesNotExist
+		}
+
+	}
+
+	return User{}, ErrUserDoesNotExist
+}
+
+func (db *DB) DeleteRefreshTokenByRefreshToken(refreshToken string) error {
+	dbStructure, err := db.loadDB()
+
+	if err != nil {
+		return ErrDatabaseLoad
+	}
+
+	for _, user := range dbStructure.Users {
+		if user.RefreshToken == refreshToken {
+			dbStructure.Users[user.Id] = User{
+				Id:                     user.Id,
+				Email:                  user.Email,
+				PasswordHash:           user.PasswordHash,
+				RefreshToken:           "",
+				RefreshTokenExpiration: time.Now().UTC(),
+			}
+
+			err = db.writeDB(dbStructure)
+			if err != nil {
+				return ErrDatabaseWrite
+			}
+
+			return nil
+		} else {
+			return ErrUserDoesNotExist
+		}
+
+	}
+
+	return ErrUserDoesNotExist
 }

@@ -21,6 +21,9 @@ func NewServer(api apiConfig, port string) *http.Server {
 	router.HandleFunc("PUT /api/users", api.putUsers)
 	router.HandleFunc("POST /api/login", api.postLogin)
 
+	router.HandleFunc("POST /api/refresh", api.postRefresh)
+	router.HandleFunc("POST /api/revoke", api.postRevoke)
+
 	return &http.Server{
 		Addr:    ":" + port,
 		Handler: router,

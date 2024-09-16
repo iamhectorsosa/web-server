@@ -14,21 +14,18 @@ func (api *apiConfig) postUsers(w http.ResponseWriter, r *http.Request) {
 	}{}
 
 	err := json.NewDecoder(r.Body).Decode(&payload)
-
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "JSON decoding failed")
 		return
 	}
 
 	passwordHash, err := auth.HashPassword(payload.Password)
-
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Password hashing failed")
 		return
 	}
 
 	user, err := api.DB.CreateUser(payload.Email, passwordHash)
-
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "User creation failed")
 		return
@@ -46,14 +43,12 @@ func (api *apiConfig) postUsers(w http.ResponseWriter, r *http.Request) {
 func (api *apiConfig) putUsers(w http.ResponseWriter, r *http.Request) {
 
 	authToken, err := auth.GetBearerToken(r.Header)
-
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Unauthenticated request")
 		return
 	}
 
 	userId, err := auth.ValidateJWT(authToken, api.jwtSecret)
-
 	if err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Unauthenticated request")
 		return
@@ -65,21 +60,18 @@ func (api *apiConfig) putUsers(w http.ResponseWriter, r *http.Request) {
 	}{}
 
 	err = json.NewDecoder(r.Body).Decode(&payload)
-
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "JSON decoding failed")
 		return
 	}
 
 	passwordHash, err := auth.HashPassword(payload.Password)
-
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Password hashing failed")
 		return
 	}
 
-	user, err := api.DB.UpdateUserById(userId, payload.Email, passwordHash)
-
+	user, err := api.DB.UpdateUserEmailPasswordById(userId, payload.Email, passwordHash)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error updating User")
 		return

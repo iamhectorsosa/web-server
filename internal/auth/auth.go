@@ -18,8 +18,9 @@ var ErrNoAuthHeaderIncluded = errors.New("Authentication header not included in 
 var ErrAuthHeaderMalformed = errors.New("Malformed authorization header")
 
 const (
-	defaultJWTExpiresInSeconds = 24
-	defaultJWTIssuer           = "chirpy"
+	defaultJWTExpiresInHours         = 1
+	defaultRefreshTokenExpiresInDays = 60
+	defaultJWTIssuer                 = "chirpy"
 )
 
 func HashPassword(password string) (string, error) {
@@ -35,7 +36,7 @@ func CheckHashPassword(password, hash string) error {
 }
 
 func CreateJWT(userId int, tokenSecret string, expiresInSeconds int) (string, error) {
-	expiresAt := defaultJWTExpiresInSeconds * time.Hour
+	expiresAt := defaultJWTExpiresInHours * time.Hour
 
 	if expiresInSeconds > 0 {
 		expiresAt = time.Duration(expiresInSeconds)
@@ -84,13 +85,14 @@ func ValidateJWT(tokenString, tokenSecret string) (int, error) {
 	return userId, nil
 }
 
-func createRefreshToken() (string, error) {
+func CreateRefreshToken() (string, time.Time, error) {
+	expiresAt := time.Now().UTC().Add(defaultRefreshTokenExpiresInDays * 24 * time.Hour)
 	token := make([]byte, 32)
 	_, err := rand.Read(token)
 	if err != nil {
-		return "", err
+		return "", expiresAt, err
 	}
-	return hex.EncodeToString(token), err
+	return hex.EncodeToString(token), expiresAt, err
 }
 
 func GetBearerToken(headers http.Header) (string, error) {
