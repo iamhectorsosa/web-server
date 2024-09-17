@@ -18,6 +18,7 @@ func main() {
 	}
 
 	jwtSecret := os.Getenv("JWT_SECRET")
+	polkaApiKey := os.Getenv("POLKA_API_KEY")
 
 	dbg := flag.Bool("debug", false, "Enable debug mode and get a fresh database to start with.")
 	flag.Parse()
@@ -27,7 +28,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	api := apiConfig{DB: databaseStore, jwtSecret: jwtSecret}
+	api := apiConfig{DB: databaseStore, jwtSecret: jwtSecret, polkaApiKey: polkaApiKey}
 	server := NewServer(api, port)
 	log.Printf("Listening on port: http://localhost:%s\n", port)
 	log.Fatal(server.ListenAndServe())

@@ -7,8 +7,9 @@ import (
 )
 
 type apiConfig struct {
-	DB        *database.DB
-	jwtSecret string
+	DB          *database.DB
+	jwtSecret   string
+	polkaApiKey string
 }
 
 func NewServer(api apiConfig, port string) *http.Server {
@@ -24,6 +25,8 @@ func NewServer(api apiConfig, port string) *http.Server {
 
 	router.HandleFunc("POST /api/refresh", api.postRefresh)
 	router.HandleFunc("POST /api/revoke", api.postRevoke)
+
+	router.HandleFunc("POST /api/polka/webhooks", api.postUserUpgrade)
 
 	return &http.Server{
 		Addr:    ":" + port,
