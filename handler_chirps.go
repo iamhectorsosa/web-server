@@ -3,19 +3,59 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/iamhectorsosa/web-server/internal/auth"
+	database "github.com/iamhectorsosa/web-server/internal/database"
 )
 
 func (api *apiConfig) getChirps(w http.ResponseWriter, r *http.Request) {
-	chirps, err := api.DB.GetChirps()
+	authorIdStr := r.URL.Query().Get("author_id")
 
+	if authorIdStr == "" {
+		authorIdStr = "0"
+	}
+
+	authorId, err := strconv.Atoi(authorIdStr)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Something went wrong")
+		respondWithError(w, http.StatusBadRequest, "Invalid Author ID")
 		return
 	}
+
+	sortQ := r.URL.Query().Get("sort")
+
+	if sortQ != "asc" && sortQ != "desc" {
+		sortQ = ""
+	}
+
+	dbChirps, err := api.DB.GetChirps()
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Couldn't retrieve Chirps")
+		return
+	}
+
+	chirps := []database.Chirp{}
+	for _, dbChirp := range dbChirps {
+		if authorId != 0 && dbChirp.AuthorId != authorId {
+			continue
+		}
+
+		chirps = append(chirps, database.Chirp{
+			Id:       dbChirp.Id,
+			AuthorId: dbChirp.AuthorId,
+			Body:     dbChirp.Body,
+		})
+	}
+
+	sort.Slice(chirps, func(i, j int) bool {
+		if sortQ == "desc" {
+			return chirps[i].Id > chirps[j].Id
+		}
+		return chirps[i].Id < chirps[j].Id
+	})
 
 	respondWithJSON(w, http.StatusOK, chirps)
 }
